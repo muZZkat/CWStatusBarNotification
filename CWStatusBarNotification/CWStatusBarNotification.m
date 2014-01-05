@@ -160,9 +160,9 @@
 
 - (void)createNotificationWindow
 {
-    self.notificationWindow = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+    self.notificationWindow = [[UIWindow alloc] initWithFrame:[self getNotificationLabelFrame]];
     self.notificationWindow.backgroundColor = [UIColor clearColor];
-    self.notificationWindow.userInteractionEnabled = NO;
+    self.notificationWindow.userInteractionEnabled = YES;
     self.notificationWindow.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     self.notificationWindow.windowLevel = UIWindowLevelStatusBar;
     self.notificationWindow.rootViewController = [UIViewController new];
