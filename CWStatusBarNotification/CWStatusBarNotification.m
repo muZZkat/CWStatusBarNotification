@@ -101,10 +101,35 @@
 
 - (void)screenOrientationChanged {
     self.notificationLabel.frame = [self getNotificationLabelFrame];
+    self.notificationView.frame = [self getNotificationLabelFrame];
     self.statusBarView.hidden = YES;
 }
 
 # pragma mark - display helpers
+
+- (void)createNotificationView
+{
+    self.notificationView = [UIView new];
+    self.notificationView.backgroundColor = self.notificationLabelBackgroundColor;
+    self.notificationView.clipsToBounds = YES;
+    
+    switch (self.notificationAnimationInStyle) {
+        case CWNotificationAnimationStyleTop:
+            self.notificationView.frame = [self getNotificationLabelTopFrame];
+            break;
+        case CWNotificationAnimationStyleBottom:
+            self.notificationView.frame = [self getNotificationLabelBottomFrame];
+            break;
+        case CWNotificationAnimationStyleLeft:
+            self.notificationView.frame = [self getNotificationLabelLeftFrame];
+            break;
+        case CWNotificationAnimationStyleRight:
+            self.notificationView.frame = [self getNotificationLabelRightFrame];
+            break;
+            
+    }
+}
+
 
 - (void)createNotificationLabelWithMessage:(NSString *)message
 {
@@ -161,6 +186,8 @@
 - (void)firstFrameChange
 {
     self.notificationLabel.frame = [self getNotificationLabelFrame];
+    self.notificationView.frame = [self getNotificationLabelFrame];
+    
     switch (self.notificationAnimationInStyle) {
         case CWNotificationAnimationStyleTop:
             self.statusBarView.frame = [self getNotificationLabelBottomFrame];
@@ -186,7 +213,9 @@
         case CWNotificationAnimationStyleBottom:
             self.statusBarView.frame = [self getNotificationLabelTopFrame];
             self.notificationLabel.layer.anchorPoint = CGPointMake(0.5f, 1.0f);
-            self.notificationLabel.center = CGPointMake(self.notificationLabel.center.x, [self getNotificationLabelHeight]);
+            self.notificationLabel.center = CGPointMake(self.notificationView.center.x, [self getNotificationLabelHeight]);
+            self.notificationView.layer.anchorPoint = CGPointMake(0.5f, 1.0f);
+            self.notificationView.center = CGPointMake(self.notificationView.center.x, [self getNotificationLabelHeight]);
             break;
         case CWNotificationAnimationStyleLeft:
             self.statusBarView.frame = [self getNotificationLabelRightFrame];
@@ -203,38 +232,61 @@
     switch (self.notificationAnimationOutStyle) {
         case CWNotificationAnimationStyleTop:
             self.notificationLabel.frame = [self getNotificationLabelTopFrame];
+            self.notificationView.frame = [self getNotificationLabelTopFrame];
+            
             break;
         case CWNotificationAnimationStyleBottom:
             self.notificationLabel.transform = CGAffineTransformMakeScale(1.0f, 0.0f);
+            self.notificationView.transform = CGAffineTransformMakeScale(1.0f, 0.0f);
             break;
         case CWNotificationAnimationStyleLeft:
             self.notificationLabel.frame = [self getNotificationLabelLeftFrame];
+            self.notificationView.frame = [self getNotificationLabelLeftFrame];
             break;
         case CWNotificationAnimationStyleRight:
             self.notificationLabel.frame = [self getNotificationLabelRightFrame];
+            self.notificationView.frame = [self getNotificationLabelRightFrame];
             break;
     }
 }
 
 # pragma mark - display notification
 
-- (void)displayNotificationWithMessage:(NSString *)message completion:(void (^)(void))completion
+- (void)displayNotificationWithView:(UIView *)view message:(NSString *)message forDuration:(CGFloat)duration completion:(void (^)(void))completion
 {
     if (!self.notificationIsShowing) {
+        
         self.notificationIsShowing = YES;
         
         // create UIWindow
         [self createNotificationWindow];
         
-        // create UILabel
-        [self createNotificationLabelWithMessage:message];
+        [self.notificationLabel removeFromSuperview];
+        [self.notificationView removeFromSuperview];
+        self.notificationView = nil;
+        self.notificationLabel = nil;
+        
+        if(view)
+        {
+            [self createNotificationView];
+            [self.notificationWindow.rootViewController.view addSubview:self.notificationView];
+            [self.notificationWindow.rootViewController.view bringSubviewToFront:self.notificationView];
+            [self.notificationView addSubview:view];
+            
+        }
+        else
+        {
+            // create UILabel
+            [self createNotificationLabelWithMessage:message];
+            [self.notificationWindow.rootViewController.view addSubview:self.notificationLabel];
+            [self.notificationWindow.rootViewController.view bringSubviewToFront:self.notificationLabel];
+            
+        }
         
         // create status bar view
         [self createStatusBarView];
         
         // add label to window
-        [self.notificationWindow.rootViewController.view addSubview:self.notificationLabel];
-        [self.notificationWindow.rootViewController.view bringSubviewToFront:self.notificationLabel];
         [self.notificationWindow setHidden:NO];
         
         // checking for screen orientation change
@@ -244,15 +296,40 @@
         [UIView animateWithDuration:STATUS_BAR_ANIMATION_LENGTH animations:^{
             [self firstFrameChange];
         } completion:^(BOOL finished) {
-            double delayInSeconds = [self.notificationLabel scrollTime];
+            double delayInSeconds = duration;
             dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
             dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
-                [completion invoke];
+                [self dismissNotification];
+                if(completion)
+                {
+                    completion();
+                }
             });
         }];
     }
-
 }
+
+
+- (void)displayNotificationWithView:(UIView *)view forDuration:(CGFloat)duration;
+{
+    [self displayNotificationWithView:view message:nil forDuration:duration completion:nil];
+}
+
+- (void)displayNotificationWithMessage:(NSString *)message completion:(void (^)(void))completion
+{
+    [self displayNotificationWithView:nil message:message forDuration:[self.notificationLabel scrollTime] completion:completion];
+}
+
+- (void)displayNotificationWithMessage:(NSString *)message forDuration:(CGFloat)duration
+{
+    [self displayNotificationWithView:nil message:message forDuration:duration completion:nil];
+}
+
+
+
+
+
+
 
 - (void)dismissNotification
 {
@@ -270,16 +347,7 @@
     }
 }
 
-- (void)displayNotificationWithMessage:(NSString *)message forDuration:(CGFloat)duration
-{
-    [self displayNotificationWithMessage:message completion:^{
-        double delayInSeconds = duration;
-        dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
-        dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
-            [self dismissNotification];
-        });
-    }];
-}
+
 
 @end
 
@@ -302,7 +370,7 @@
 
 - (CGFloat)scrollOffset {
     if (self.numberOfLines != 1) return 0;
-
+    
     CGRect insetRect = CGRectInset(self.bounds, PADDING, 0);
     return MAX(0, [self fullWidth] - insetRect.size.width);
 }
