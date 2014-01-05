@@ -32,6 +32,7 @@ typedef NS_ENUM(NSInteger, CWNotificationAnimationType) {
 };
 
 @property (strong, nonatomic) ScrollLabel *notificationLabel;
+@property (strong, nonatomic) UIView *notificationView;
 @property (strong, nonatomic) UIColor *notificationLabelBackgroundColor;
 @property (strong, nonatomic) UIColor *notificationLabelTextColor;
 @property (assign, nonatomic) CGFloat notificationLabelHeight;
@@ -50,5 +51,8 @@ typedef NS_ENUM(NSInteger, CWNotificationAnimationType) {
 - (void)displayNotificationWithMessage:(NSString *)message forDuration:(CGFloat)duration;
 - (void)displayNotificationWithMessage:(NSString *)message completion:(void (^)(void))completion;
 - (void)dismissNotification;
+
+- (void)displayNotificationWithView:(UIView *)view forDuration:(CGFloat)duration;
+
 
 @end
